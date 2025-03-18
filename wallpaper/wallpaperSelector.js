@@ -1,103 +1,91 @@
 import https from "https";
+
 const images = {
-  sunrise: "./images/sunrise.png",
-  sunset: "./images/sunset.png",
-  evening: "./images/evening.png",
-  morning: "./images/morning.png",
-  night: "./images/night.png",
-  noon: "./images/noon.png",
+  sunrise: "sunrise.png",
+  sunset: "sunset.png",
+  evening: "evening.png",
+  morning: "morning.png",
+  night: "night.png",
+  noon: "noon.png",
 };
-// const getLocalTimezone = (utcDate) => {
-//   return new Date(
-//     new Date(utcDate).getTime() - new Date(utcDate).getTimezoneOffset() * 60000
-//   ).toISOString();
-// };
-const convertToLocal = (utcDates) => {
-  const utcDate = new Date(utcDates);
+
+const convertToLocalTime = (utcDateString) => {
+  const utcDate = new Date(utcDateString);
   return new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
 };
 
-function gitSunTime(lat, lng) {
+function getSunTimes(lat, lon) {
   return new Promise((resolve, reject) => {
-    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&formatted=0`;
+    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`;
 
     https
       .get(url, (res) => {
         let data = "";
-
         res.on("data", (chunk) => (data += chunk));
-        console.log(data);
         res.on("end", () => {
           const json = JSON.parse(data);
-          if (json.status == "OK") {
+          if (json.status === "OK") {
             resolve(json.results);
           } else {
-            reject("Error");
+            reject(new Error("Error fetching sun times."));
           }
         });
       })
       .on("error", (err) => {
-        reject("API req failed" + err.message);
+        reject(new Error("API request failed: " + err.message));
       });
   });
 }
 
-async function selectWalpaper(lat, lon) {
-  const suntime = await gitSunTime(lat, lon);
-  console.log(lat, lon);
-  const sunrise = convertToLocal(suntime.sunrise);
-  const sunset = convertToLocal(suntime.sunset);
-  const solarNoon = convertToLocal(suntime.solar_noon);
+async function selectWallpaper(lat, lon) {
+  const sunTimes = await getSunTimes(lat, lon);
+  const sunriseTime = convertToLocalTime(sunTimes.sunrise);
+  const sunsetTime = convertToLocalTime(sunTimes.sunset);
+  const solarNoonTime = convertToLocalTime(sunTimes.solar_noon);
 
   const currentTime = new Date();
 
-  console.log(suntime);
-  console.log(currentTime);
-
   const addMinutes = (date, mins) => new Date(date.getTime() + mins * 60000);
-  const timeRange = [
+
+  const timeIntervals = [
     {
       name: images.sunrise,
-      start: sunrise,
-      end: addMinutes(sunrise, 5),
+      start: sunriseTime,
+      end: addMinutes(sunriseTime, 5),
     },
     {
       name: images.morning,
-      start: addMinutes(sunrise, 5),
-      end: addMinutes(solarNoon, -3),
+      start: addMinutes(sunriseTime, 5),
+      end: addMinutes(solarNoonTime, -3),
     },
     {
       name: images.noon,
-      start: solarNoon,
-      end: addMinutes(solarNoon, 3),
+      start: solarNoonTime,
+      end: addMinutes(solarNoonTime, 3),
     },
     {
       name: images.evening,
-      start: addMinutes(solarNoon, 3),
-      end: addMinutes(sunset, -5),
+      start: addMinutes(solarNoonTime, 3),
+      end: addMinutes(sunsetTime, -5),
     },
     {
       name: images.sunset,
-      start: sunset,
-      end: addMinutes(sunset, 5),
+      start: sunsetTime,
+      end: addMinutes(sunsetTime, 5),
     },
   ];
-  console.log(timeRange);
-  const selectedwallpeper =
-    timeRange.find(
-      (range) => currentTime >= range.start && currentTime < range.end
+
+  const selectedWallpaper =
+    timeIntervals.find(
+      (interval) => currentTime >= interval.start && currentTime < interval.end
     )?.name || images.night;
-  console.log(selectedwallpeper);
-  return selectWalpaper;
+
+  console.log(selectedWallpaper);
+  return selectedWallpaper;
 }
 
-// selectWalpaper(-51.63092, -69.2247).then(console.log);
-// selectWalpaper(31.9544, 35.9106).then(console.log);
-
-// console.log(args);
-// selectWalpaper(parseFloat(args));
 const args = process.argv.slice(2);
 const lat = parseFloat(args[0]);
 const lon = parseFloat(args[1]);
 
-selectWalpaper(lat, lon);
+selectWallpaper(lat, lon);
