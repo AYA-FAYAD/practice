@@ -1,6 +1,23 @@
-const https = require("https");
+import https from "https";
+const images = {
+  sunrise: "./images/sunrise.png",
+  sunset: "./images/sunset.png",
+  evening: "./images/evening.png",
+  morning: "./images/morning.png",
+  night: "./images/night.png",
+  noon: "./images/noon.png",
+};
+// const getLocalTimezone = (utcDate) => {
+//   return new Date(
+//     new Date(utcDate).getTime() - new Date(utcDate).getTimezoneOffset() * 60000
+//   ).toISOString();
+// };
+const convertToLocal = (utcDates) => {
+  const utcDate = new Date(utcDates);
+  return new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
+};
 
-function getdats(lat, lng) {
+function gitSunTime(lat, lng) {
   return new Promise((resolve, reject) => {
     const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&formatted=0`;
 
@@ -8,12 +25,12 @@ function getdats(lat, lng) {
       .get(url, (res) => {
         let data = "";
 
-        res.on("data", (ckunck) => (data += ckunck));
+        res.on("data", (chunk) => (data += chunk));
         console.log(data);
         res.on("end", () => {
-          const josn = JSON.parse(data);
-          if (josn.status == "OK") {
-            resolve(josn.results);
+          const json = JSON.parse(data);
+          if (json.status == "OK") {
+            resolve(json.results);
           } else {
             reject("Error");
           }
@@ -26,48 +43,61 @@ function getdats(lat, lng) {
 }
 
 async function selectWalpaper(lat, lon) {
-  const suntime = await getdats(lat, lon);
-  console.log(suntime);
-  const currentTime = getLocalTimezone(new Date());
-  const sunrise = getLocalTimezone(suntime.sunrise);
-  const noon = getLocalTimezone(suntime.solar_noon);
-  const sunset = getLocalTimezone(suntime.sunset);
+  const suntime = await gitSunTime(lat, lon);
+  console.log(lat, lon);
+  const sunrise = convertToLocal(suntime.sunrise);
+  const sunset = convertToLocal(suntime.sunset);
+  const solarNoon = convertToLocal(suntime.solar_noon);
 
-  console.log("sunSet:" + sunset);
-  console.log("currenTime:" + currentTime);
-  console.log("sunRise:" + sunrise);
-  console.log("noon:" + noon);
-  let wallpaper = "";
-  if (currentTime === sunrise) {
-    wallpaper = "sunrise.png";
-  } else if (currentTime === sunset) {
-    wallpaper = "sunset.png";
-  } else if (currentTime === noon) {
-    wallpaper = "noon.png";
-  } else if (currentTime > sunrise && currentTime < noon) {
-    wallpaper = "morning.png";
-  } else if (currentTime > noon && currentTime < sunset) {
-    wallpaper = "eveinig.png";
-  } else {
-    wallpaper = "night.png";
-  }
-  console.log(wallpaper);
+  const currentTime = new Date();
+
+  console.log(suntime);
+  console.log(currentTime);
+
+  const addMinutes = (date, mins) => new Date(date.getTime() + mins * 60000);
+  const timeRange = [
+    {
+      name: images.sunrise,
+      start: sunrise,
+      end: addMinutes(sunrise, 5),
+    },
+    {
+      name: images.morning,
+      start: addMinutes(sunrise, 5),
+      end: addMinutes(solarNoon, -3),
+    },
+    {
+      name: images.noon,
+      start: solarNoon,
+      end: addMinutes(solarNoon, 3),
+    },
+    {
+      name: images.evening,
+      start: addMinutes(solarNoon, 3),
+      end: addMinutes(sunset, -5),
+    },
+    {
+      name: images.sunset,
+      start: sunset,
+      end: addMinutes(sunset, 5),
+    },
+  ];
+  console.log(timeRange);
+  const selectedwallpeper =
+    timeRange.find(
+      (range) => currentTime >= range.start && currentTime < range.end
+    )?.name || images.night;
+  console.log(selectedwallpeper);
+  return selectWalpaper;
 }
 
-// new Date().getTime();
-// console.log(new Date().getTime());
+// selectWalpaper(-51.63092, -69.2247).then(console.log);
+// selectWalpaper(31.9544, 35.9106).then(console.log);
 
-const getLocalTimezone = (utcDate) => {
-  return new Date(
-    new Date(utcDate).getTime() - new Date(utcDate).getTimezoneOffset() * 60000
-  ).toISOString();
-};
+// console.log(args);
+// selectWalpaper(parseFloat(args));
+const args = process.argv.slice(2);
+const lat = parseFloat(args[0]);
+const lon = parseFloat(args[1]);
 
-// getdats(31.99512, 35.95851).then(({ sunrise }) => {
-//   const currentTime = getLocalTimezone(new Date());
-//   const _sunrise = getLocalTimezone(sunrise);
-
-//   console.log("curr time", currentTime);
-//   console.log("sunrse", _sunrise);
-// });
-selectWalpaper(31.99512, 35.95851).then(console.log);
+selectWalpaper(lat, lon);
