@@ -23,11 +23,11 @@ function getSunTimes(lat, lon) {
         let data = "";
         res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
-          const json = JSON.parse(data);
-          if (json.status === "OK") {
+          try {
+            const json = JSON.parse(data);
             resolve(json.results);
-          } else {
-            reject(new Error("Error fetching sun times."));
+          } catch (err) {
+            reject(new Error("Invalid JSON response: " + err.message));
           }
         });
       })
@@ -37,8 +37,9 @@ function getSunTimes(lat, lon) {
   });
 }
 
-async function selectWallpaper(lat, lon) {
+async function getWallpaper(lat, lon) {
   const sunTimes = await getSunTimes(lat, lon);
+  // console.log("sunTimes", sunTimes);
   const sunriseTime = convertToLocalTime(sunTimes.sunrise);
   const sunsetTime = convertToLocalTime(sunTimes.sunset);
   const solarNoonTime = convertToLocalTime(sunTimes.solar_noon);
@@ -88,4 +89,4 @@ const args = process.argv.slice(2);
 const lat = parseFloat(args[0]);
 const lon = parseFloat(args[1]);
 
-selectWallpaper(lat, lon);
+getWallpaper(lat, lon);
